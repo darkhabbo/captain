@@ -1,0 +1,145 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Capitán Parlante</title>
+  <style>
+    body {
+      background-image: url(images/wood.png);
+      background-repeat: repeat; /* hace que se repita */
+      background-size: 500px 500px; /* cambia el tamaño de la imagen de fondo */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: sans-serif;
+    }
+
+    .container {
+      position: relative;
+      width: 300px;
+      margin-top: 30px;
+    }
+
+    img#pirate {
+      width: 100%;
+      border-radius: 10px;
+    }
+
+    .mouth {
+      position: absolute;
+      width: 60px;
+      bottom: 215px;
+      left: 120px;
+      transition: opacity 0.1s;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>🦜 Capitán Parlante</h1>
+
+  <div class="container">
+    <img id="pirate" src="pirate.png" alt="Pirata">
+    <img id="mouth" class="mouth" src="mouth-closed.png">
+  </div>
+
+  <button onclick="startInteraction()">Hablar con el Capitán</button>
+
+  <div style="margin-top: 20px; text-align:center">
+  <input type="text" id="inputTexto" placeholder="Escribí tu mensaje..." style="padding:8px; width: 200px;">
+  <button onclick="enviarTexto()">Enviar</button>
+</div>
+
+
+  <script>
+    const mouth = document.getElementById("mouth");
+
+    function startInteraction() {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = 'es-ES';
+      recognition.start();
+
+      recognition.onresult = function(event) {
+        const userInput = event.results[0][0].transcript;
+        console.log("Usuario:", userInput);
+        askAI(userInput);
+      };
+    }
+
+    function askAI(texto) {
+  fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer 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",
+      "HTTP-Referer": "http://localhost",
+      "X-Title": "Pirata Parlante"
+    },
+    body: JSON.stringify({
+      model: "mistralai/mistral-7b-instruct", // modelo gratuito compatible con español
+      messages: [
+        { role: "system", content: "Sos un capitán pirata muy sabio y divertido." },
+        { role: "user", content: texto }
+      ]
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (!data.choices || !data.choices[0]) {
+      console.error("Respuesta inválida:", data);
+      hablar("No entendí eso, ¡intentalo otra vez marinero!");
+      return;
+    }
+
+    const respuesta = data.choices[0].message.content;
+    console.log("Capitán:", respuesta);
+    hablar(respuesta);
+  })
+  .catch(error => {
+    console.error("Error al contactar con OpenRouter:", error);
+    hablar("¡Arr! Hubo un problema hablando con el oráculo de los mares.");
+  });
+}
+
+    
+
+    function hablar(texto) {
+  const speech = new SpeechSynthesisUtterance(texto);
+  speech.lang = 'es-ES';
+
+  let interval;
+  speech.onstart = () => {
+    interval = setInterval(() => {
+      mouth.src = mouth.src.includes("closed") ? "mouth-open.png" : "mouth-closed.png";
+    }, 150);
+  };
+
+  speech.onend = () => {
+    clearInterval(interval);
+    mouth.src = "mouth-closed.png";
+  };
+
+  speechSynthesis.speak(speech);
+}
+
+
+
+    function enviarTexto() {
+  const input = document.getElementById("inputTexto");
+  const texto = input.value.trim();
+  if (texto !== "") {
+    askAI(texto);
+    input.value = "";
+  }
+}
+
+  </script>
+</body>
+</html>
